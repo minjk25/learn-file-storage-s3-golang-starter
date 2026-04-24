@@ -1,10 +1,12 @@
 package main
 
 import (
-	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/auth"
 	"github.com/google/uuid"
@@ -48,12 +50,6 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	fileContent, err := io.ReadAll(file)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Internal Server Error", err)
-		return
-	}
-
 	dbVideo, err := cfg.db.GetVideo(videoID)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "the video doesn't exist", err)
@@ -64,9 +60,24 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	thumbnailData := base64.StdEncoding.EncodeToString(fileContent)
-	dataURL := fmt.Sprintf("data:%s;base64,%s", typeContent, thumbnailData)
-	dbVideo.ThumbnailURL = &dataURL
+	typeContentSlice := strings.Split(typeContent, "/")
+	fileName := dbVideo.ID.String() + "." + typeContentSlice[1]
+	filePath := filepath.Join(cfg.assetsRoot, fileName)
+	createdFile, err := os.Create(filePath)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Internal Server Error", err)
+		return
+	}
+	defer createdFile.Close()
+
+	_, err = io.Copy(createdFile, file)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Internal Server Error", err)
+		return
+	}
+
+	thumbnailURL := fmt.Sprintf("http://localhost:%s/assets/%s", cfg.port, fileName)
+	dbVideo.ThumbnailURL = &thumbnailURL
 
 	err = cfg.db.UpdateVideo(dbVideo)
 	if err != nil {
