@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,9 +16,16 @@ func (cfg apiConfig) ensureAssetsDir() error {
 	return nil
 }
 
-func getAssetPath(randomKey string, mediaType string) string {
+func getAssetPath(mediaType string) (string, error) {
+	// generate random key and encode with base64 string for each thumbnail upload
+	randomKey := make([]byte, 32)
+	_, err := rand.Read(randomKey)
+	if err != nil {
+		return "", err
+	}
+	fileName := base64.RawURLEncoding.EncodeToString(randomKey)
 	fileExtention := mediaTypeToExt(mediaType)
-	return fmt.Sprintf("%s%s", randomKey, fileExtention)
+	return fmt.Sprintf("%s%s", fileName, fileExtention), nil
 }
 
 func mediaTypeToExt(mediaType string) string {
