@@ -125,6 +125,7 @@ func (c Client) UpdateVideo(video Video) error {
 	query := `
 	UPDATE videos
 	SET
+		updated_at = CURRENT_TIMESTAMP,
 		title = ?,
 		description = ?,
 		thumbnail_url = ?,
