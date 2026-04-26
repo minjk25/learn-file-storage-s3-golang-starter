@@ -5,6 +5,7 @@ import (
 	"mime"
 	"net/http"
 	"os"
+	"path"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -86,15 +87,32 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	directory := ""
+	ratio, err := getVideoAspectRatio(tempFile.Name())
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Unable to create file on server", err)
+		return
+	}
+	switch ratio {
+	case "16:9":
+		directory = "landscape"
+	case "9:16":
+		directory = "portrait"
+	default:
+		directory = "other"
+	}
+
 	fileName, err := getAssetPath(typeContent)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Unable to create file on server", err)
 		return
 	}
 
+	key := path.Join(directory, fileName) // key is a fileName with prefix directory for organizing obj in S3
+
 	_, err = cfg.s3Client.PutObject(r.Context(), &s3.PutObjectInput{
 		Bucket:      aws.String(cfg.s3Bucket),
-		Key:         aws.String(fileName),
+		Key:         aws.String(key),
 		Body:        tempFile,
 		ContentType: aws.String(typeContent),
 	})
@@ -103,7 +121,7 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	videoURL := cfg.getObjectURL(fileName)
+	videoURL := cfg.getObjectURL(key)
 	dbVideo.VideoURL = &videoURL
 	err = cfg.db.UpdateVideo(dbVideo)
 	if err != nil {
