@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
 
@@ -11,7 +12,11 @@ import (
 
 func (cfg *apiConfig) handlerVideoMetaCreate(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		database.CreateVideoParams
+		Title       string `json:"title"`
+		Description string `json:"description"`
+	}
+	type response struct {
+		Video
 	}
 
 	token, err := auth.GetBearerToken(r.Header)
@@ -32,24 +37,41 @@ func (cfg *apiConfig) handlerVideoMetaCreate(w http.ResponseWriter, r *http.Requ
 		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters", err)
 		return
 	}
-	params.UserID = userID
 
-	video, err := cfg.db.CreateVideo(params.CreateVideoParams)
+	createVideoParams := database.CreateVideoParams{
+		ID:    uuid.New().String(),
+		Title: params.Title,
+		Description: sql.NullString{
+			String: params.Description,
+			Valid:  true,
+		},
+		UserID: sql.NullString{
+			String: userID,
+			Valid:  true,
+		},
+	}
+	dbVideo, err := cfg.db.CreateVideo(r.Context(), createVideoParams)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't create video", err)
 		return
 	}
 
-	respondWithJSON(w, http.StatusCreated, video)
+	respondWithJSON(w, http.StatusCreated, response{
+		Video: Video{
+			ID:           dbVideo.ID,
+			CreatedAt:    dbVideo.CreatedAt.Time,
+			UpdatedAt:    dbVideo.UpdatedAt.Time,
+			Title:        dbVideo.Title,
+			Description:  dbVideo.Description.String,
+			ThumbnailURL: &dbVideo.ThumbnailUrl.String,
+			VideoURL:     dbVideo.VideoUrl,
+			UserID:       dbVideo.UserID.String,
+		},
+	})
 }
 
 func (cfg *apiConfig) handlerVideoMetaDelete(w http.ResponseWriter, r *http.Request) {
 	videoIDString := r.PathValue("videoID")
-	videoID, err := uuid.Parse(videoIDString)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid ID", err)
-		return
-	}
 
 	token, err := auth.GetBearerToken(r.Header)
 	if err != nil {
@@ -62,17 +84,17 @@ func (cfg *apiConfig) handlerVideoMetaDelete(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	video, err := cfg.db.GetVideo(videoID)
+	video, err := cfg.db.GetVideo(r.Context(), videoIDString)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Couldn't get video", err)
 		return
 	}
-	if video.UserID != userID {
+	if video.UserID.String != userID {
 		respondWithError(w, http.StatusForbidden, "You can't delete this video", err)
 		return
 	}
 
-	err = cfg.db.DeleteVideo(videoID)
+	err = cfg.db.DeleteVideo(r.Context(), videoIDString)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't delete video", err)
 		return
@@ -82,20 +104,29 @@ func (cfg *apiConfig) handlerVideoMetaDelete(w http.ResponseWriter, r *http.Requ
 }
 
 func (cfg *apiConfig) handlerVideoGet(w http.ResponseWriter, r *http.Request) {
-	videoIDString := r.PathValue("videoID")
-	videoID, err := uuid.Parse(videoIDString)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid video ID", err)
-		return
+	type response struct {
+		Video
 	}
 
-	video, err := cfg.db.GetVideo(videoID)
+	videoIDString := r.PathValue("videoID")
+	dbVideo, err := cfg.db.GetVideo(r.Context(), videoIDString)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Couldn't get video", err)
 		return
 	}
 
-	respondWithJSON(w, http.StatusOK, video)
+	respondWithJSON(w, http.StatusOK, response{
+		Video: Video{
+			ID:           dbVideo.ID,
+			CreatedAt:    dbVideo.CreatedAt.Time,
+			UpdatedAt:    dbVideo.UpdatedAt.Time,
+			Title:        dbVideo.Title,
+			Description:  dbVideo.Description.String,
+			ThumbnailURL: &dbVideo.ThumbnailUrl.String,
+			VideoURL:     dbVideo.VideoUrl,
+			UserID:       dbVideo.UserID.String,
+		},
+	})
 }
 
 func (cfg *apiConfig) handlerVideosRetrieve(w http.ResponseWriter, r *http.Request) {
@@ -110,10 +141,29 @@ func (cfg *apiConfig) handlerVideosRetrieve(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	videos, err := cfg.db.GetVideos(userID)
+	dbVideos, err := cfg.db.GetVideos(r.Context(), sql.NullString{
+		String: userID,
+		Valid:  true,
+	})
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't retrieve videos", err)
 		return
+	}
+
+	videos := []Video{}
+
+	for _, dbVideo := range dbVideos {
+		v := Video{
+			ID:           dbVideo.ID,
+			CreatedAt:    dbVideo.CreatedAt.Time,
+			UpdatedAt:    dbVideo.UpdatedAt.Time,
+			Title:        dbVideo.Title,
+			Description:  dbVideo.Description.String,
+			ThumbnailURL: &dbVideo.ThumbnailUrl.String,
+			VideoURL:     dbVideo.VideoUrl,
+			UserID:       dbVideo.UserID.String,
+		}
+		videos = append(videos, v)
 	}
 
 	respondWithJSON(w, http.StatusOK, videos)

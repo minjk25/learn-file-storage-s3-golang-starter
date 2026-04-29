@@ -1,22 +1,33 @@
 package main
 
 import (
+	"database/sql"
 	"io"
 	"mime"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/auth"
-	"github.com/google/uuid"
+	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/database"
 )
 
+type Video struct {
+	ID           string      `json:"id"`
+	CreatedAt    time.Time   `json:"created_at"`
+	UpdatedAt    time.Time   `json:"updated_at"`
+	Title        string      `json:"title"`
+	Description  string      `json:"description"`
+	ThumbnailURL *string     `json:"thumbnail_url"`
+	VideoURL     interface{} `json:"video_url"`
+	UserID       string      `json:"user_id"`
+}
+
 func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Request) {
-	videoIDString := r.PathValue("videoID")
-	videoID, err := uuid.Parse(videoIDString)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid ID", err)
-		return
+	type response struct {
+		Video
 	}
+	videoIDString := r.PathValue("videoID")
 
 	token, err := auth.GetBearerToken(r.Header)
 	if err != nil {
@@ -53,12 +64,12 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	dbVideo, err := cfg.db.GetVideo(videoID)
+	dbVideo, err := cfg.db.GetVideo(r.Context(), videoIDString)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "the video doesn't exist", err)
 		return
 	}
-	if dbVideo.UserID != userID {
+	if dbVideo.UserID.String != userID {
 		respondWithError(w, http.StatusUnauthorized, "Not authorized to update this video", err)
 		return
 	}
@@ -83,13 +94,35 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 	}
 
 	thumbnailURL := cfg.getAssetURL(fileName)
-	dbVideo.ThumbnailURL = &thumbnailURL
+	dbVideo.ThumbnailUrl = sql.NullString{
+		String: thumbnailURL,
+		Valid:  true,
+	}
+	updateVideoParams := database.UpdateVideoParams{
+		Title:        dbVideo.Title,
+		Description:  dbVideo.Description,
+		ThumbnailUrl: dbVideo.ThumbnailUrl,
+		VideoUrl:     dbVideo.VideoUrl,
+		UserID:       dbVideo.UserID,
+		ID:           dbVideo.ID,
+	}
 
-	err = cfg.db.UpdateVideo(dbVideo)
+	err = cfg.db.UpdateVideo(r.Context(), updateVideoParams)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't update video", err)
 		return
 	}
 
-	respondWithJSON(w, http.StatusOK, dbVideo)
+	respondWithJSON(w, http.StatusOK, response{
+		Video: Video{
+			ID:           dbVideo.ID,
+			CreatedAt:    dbVideo.CreatedAt.Time,
+			UpdatedAt:    dbVideo.UpdatedAt.Time,
+			Title:        dbVideo.Title,
+			Description:  dbVideo.Description.String,
+			ThumbnailURL: &dbVideo.ThumbnailUrl.String,
+			VideoURL:     dbVideo.VideoUrl,
+			UserID:       dbVideo.UserID.String,
+		},
+	})
 }

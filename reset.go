@@ -9,7 +9,7 @@ func (cfg *apiConfig) handlerReset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := cfg.db.Reset()
+	err := cfg.db.Reset(r.Context())
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't reset database", err)
 		return

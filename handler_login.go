@@ -7,7 +7,15 @@ import (
 
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/auth"
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/database"
+	"github.com/google/uuid"
 )
+
+type User struct {
+	ID        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Email     string    `json:"email"`
+}
 
 func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
@@ -15,7 +23,7 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		Email    string `json:"email"`
 	}
 	type response struct {
-		database.User
+		User
 		Token        string `json:"token"`
 		RefreshToken string `json:"refresh_token"`
 	}
@@ -28,7 +36,7 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := cfg.db.GetUserByEmail(params.Email)
+	user, err := cfg.db.GetUserByEmail(r.Context(), params.Email)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Incorrect email or password", err)
 		return
@@ -60,7 +68,7 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = cfg.db.CreateRefreshToken(database.CreateRefreshTokenParams{
+	_, err = cfg.db.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
 		UserID:    user.ID,
 		Token:     refreshToken,
 		ExpiresAt: time.Now().UTC().Add(time.Hour * 24 * 60),
@@ -70,8 +78,19 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	uuID, err := uuid.Parse(user.ID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't convert a string to uuid", err)
+		return
+	}
+
 	respondWithJSON(w, http.StatusOK, response{
-		User:         user,
+		User: User{
+			ID:        uuID,
+			CreatedAt: user.CreatedAt.Time,
+			UpdatedAt: user.UpdatedAt.Time,
+			Email:     user.Email,
+		},
 		Token:        accessToken,
 		RefreshToken: refreshToken,
 	})

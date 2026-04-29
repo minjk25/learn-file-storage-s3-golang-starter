@@ -2,21 +2,23 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"log"
 	"net/http"
 	"os"
 
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/database"
+	"github.com/pressly/goose/v3"
 
 	"github.com/joho/godotenv"
-	_ "github.com/lib/pq"
+	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 type apiConfig struct {
-	db               database.Client
+	db               *database.Queries
 	jwtSecret        string
 	platform         string
 	filepathRoot     string
@@ -36,9 +38,18 @@ func main() {
 		log.Fatal("DB_URL must be set")
 	}
 
-	db, err := database.NewClient(pathToDB)
+	dbConn, err := sql.Open("sqlite3", pathToDB)
 	if err != nil {
-		log.Fatalf("Couldn't connect to database: %v", err)
+		log.Fatalf("Error opening database: %s", err)
+	}
+	dbQueries := database.New(dbConn)
+
+	if err := goose.SetDialect("sqlite3"); err != nil {
+		log.Fatalf("Error opening database: %s", err)
+	}
+
+	if err := goose.Up(dbConn, "sql/schema"); err != nil {
+		log.Fatalf("Error opening database: %s", err)
 	}
 
 	jwtSecret := os.Getenv("JWT_SECRET")
@@ -88,7 +99,7 @@ func main() {
 	client := s3.NewFromConfig(awsCfg)
 
 	cfg := apiConfig{
-		db:               db,
+		db:               dbQueries,
 		jwtSecret:        jwtSecret,
 		platform:         platform,
 		filepathRoot:     filepathRoot,

@@ -1,12 +1,10 @@
 module github.com/bootdotdev/learn-file-storage-s3-golang-starter
 
-go 1.24
-
-toolchain go1.24.1
+go 1.25.7
 
 require (
 	github.com/golang-jwt/jwt/v5 v5.0.0-rc.1
-	golang.org/x/crypto v0.14.0 // indirect
+	golang.org/x/crypto v0.50.0 // indirect
 )
 
 require (
@@ -16,8 +14,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.100.0
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
-	github.com/lib/pq v1.10.9
 	github.com/mattn/go-sqlite3 v1.14.24
+	github.com/pressly/goose/v3 v3.27.1
 )
 
 require (
@@ -36,5 +34,9 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.20 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.42.0 // indirect
 	github.com/aws/smithy-go v1.25.0 // indirect
-	golang.org/x/sys v0.13.0 // indirect
+	github.com/mfridman/interpolate v0.0.2 // indirect
+	github.com/sethvargo/go-retry v0.3.0 // indirect
+	go.uber.org/multierr v1.11.0 // indirect
+	golang.org/x/sync v0.20.0 // indirect
+	golang.org/x/sys v0.43.0 // indirect
 )
