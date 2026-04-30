@@ -1,17 +1,25 @@
 # Tubely
 A file server application built with Go, AWS S3, and CloudFront. The project handles uploading, storing, streaming, and securely serving files (including video) through a CDN-backed architecture.
 
-## What I Learned
+## Overview
+This project demonstrates a cloud-based data storage workflow using AWS S3.
+- Data ingestion via API
+- Cloud object storage (S3)
+- Scalable data storage architecture
 
-- How to handle large file and multipart uploads in Go
-- The difference between filesystem storage and object storage
-- How to integrate the AWS SDK for Go with S3
-- How HTTP caching works (cache headers, cache-busting)
-- How to stream video using HTTP range requests
-- How to secure AWS resources using IAM roles, policies, and least-privilege access
-- How to generate pre-signed URLs for time-limited, secure file access
-- How CDNs like CloudFront reduce latency and origin load
-- Key resiliency concepts: availability, reliability, and durability
+## Key Concepts & Learnings
+
+| Feature / Concept | What I Learned |
+|------------------|---------------|
+| Large File Handling | How to handle large files and multipart uploads efficiently in Go |
+| Storage Architecture | The difference between filesystem storage and object storage (S3) |
+| AWS Integration | How to integrate the AWS SDK for Go with S3 services |
+| HTTP Caching | How cache headers and cache-busting strategies improve performance |
+| Video Streaming | How HTTP range requests enable efficient video streaming |
+| Security (IAM) | How to secure AWS resources using IAM roles, policies, and least-privilege access |
+| Pre-signed URLs | How to generate time-limited URLs for secure file access |
+| CDN (CloudFront) | How CDNs reduce latency and decrease load on origin servers |
+| Resiliency | Key concepts: availability, reliability, and durability in distributed systems |
 
 ## Requirement
 - [Go](https://golang.org/doc/install)
